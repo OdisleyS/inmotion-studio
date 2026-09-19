@@ -1,0 +1,27 @@
+{
+  "provider_selection": {
+    "script": "auto",
+    "image": "auto",
+    "audio": "auto",
+    "video": "auto"
+  },
+  "model_selection": {
+    "script": "auto",
+    "image": "auto",
+    "audio": "auto",
+    "video": "auto"
+  },
+  "image_source": "generate",
+  "video_strategy": "auto",
+  "narration_language": "pt_BR",
+  "target_seconds": 35,
+  "stage_autonomy": {
+    "research": "autonomous",
+    "script": "autonomous",
+    "image": "autonomous",
+    "audio": "autonomous",
+    "sfx": "autonomous",
+    "bgm": "autonomous",
+    "video": "autonomous"
+  }
+}

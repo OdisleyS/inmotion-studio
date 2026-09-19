@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>In-House Video Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar"><div><span class="eyebrow">PRIVATE CREATIVE OPS</span><h1>In-House Video Studio</h1></div><span id="health" class="pill">checking API…</span></header>
+      <section class="hero"><div><p class="eyebrow">SHORTS / TIKTOK / 9:16</p><h2>Da ideia ao vídeo com controle de diretor.</h2><p class="muted">Um estúdio local para roteiros, estilos próprios, fallback automático e renderização vertical.</p></div><div class="hero-orb">✦</div></section>
+      <section class="grid">
+        <form id="studio-form" class="card form-card">
+          <div class="section-title"><span>01</span><h3>Nova produção</h3></div>
+          <label>Modo<select id="mode"><option value="autopilot">Autopilot — a IA conduz</option><option value="director">Director — eu conduzo</option></select></label>
+          <label>Estilo<select id="style"><option value="dynamic_slideshow">Slideshow dinâmico</option><option value="avatar_narrator">Avatar narrador</option><option value="couples_fruits_2d">Casais / frutas 2D</option><option value="sketch_clone">Meu traço — sketch clone</option></select></label>
+          <label>Tema ou ideia<input id="topic" value="O detalhe invisível que muda como você aprende" required /></label>
+          <label>Roteiro próprio <span class="optional">opcional</span><textarea id="script" rows="4" placeholder="Deixe vazio para o Autopilot escrever."></textarea></label>
+          <label>Referência de desenho <span class="optional">opcional · múltiplas imagens</span><input id="sketch-files" type="file" accept="image/png,image/jpeg,image/webp" multiple /><small id="sketch-status" class="muted small">Sem upload: a IA local cria as imagens automaticamente.</small></label>
+          <div class="stage-title"><span>MODELOS POR ETAPA</span><small>Escolha automático ou um provider específico.</small></div>
+          <div class="stage-grid">
+            <label>Roteiro<select id="script-provider"></select></label>
+            <label>Imagem<select id="image-provider"></select></label>
+            <label>Áudio<select id="audio-provider"></select></label>
+            <label>Vídeo<select id="video-provider"></select></label>
+          </div>
+          <label>Estratégia de vídeo<select id="video-strategy"><option value="auto">Automática por estilo</option><option value="image_sequence">Frame por frame → vídeo</option><option value="direct_video">Vídeo nativo do modelo</option></select></label>
+          <label>Idioma da narração<select id="narration-language"><option value="pt_BR">Português brasileiro · Piper Faber</option><option value="en_US">English · Piper Amy</option></select></label>
+          <p id="capability-hint" class="hint">Verificando capacidades dos providers…</p>
+          <button type="submit">Gerar produção <span>→</span></button>
+          <p id="form-status" class="muted small"></p>
+        </form>
+        <section class="card output-card"><div class="section-title"><span>02</span><h3>Resultado</h3></div><div id="production-progress" class="progress-panel" hidden><div class="spinner">✦</div><div><strong id="progress-title">Preparando produção</strong><p id="progress-detail" class="muted small">Orquestrando providers…</p></div></div><div id="empty" class="empty"><div class="empty-icon">◌</div><p>Sua produção aparecerá aqui.</p><span class="muted small">O sistema transforma o conceito em roteiro, imagens, voz e MP4.</span></div><div id="result" hidden></div><div id="history" class="history"></div></section>
+      </section>
+      <section class="card architecture"><div class="section-title"><span>03</span><h3>Cascata de providers</h3></div><div class="providers"><div><strong>Script</strong><span>Antigravity CLI → local fallback</span></div><div><strong>Imagem</strong><span>frames locais → ControlNet/LoRA</span></div><div><strong>Áudio</strong><span>Piper pt-BR/en-US → fallback</span></div><div><strong>Vídeo</strong><span>FFmpeg real → Wan/LTX</span></div></div></section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
