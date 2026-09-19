@@ -2159,7 +2159,7 @@ function App() {
                              <div className="workspace-sketches">
                                 <small>Referências já encontradas neste workspace · selecione até 10</small>
                                <div className="workspace-sketch-list">
-                                 {availableSketches.slice(0, 6).map((sketch) => (
+                                  {availableSketches.slice(0, 10).map((sketch) => (
                                    <button
                                      type="button"
                                       className={`workspace-sketch ${storedSketchFilenames.includes(sketch.filename) ? "selected" : ""}`}
