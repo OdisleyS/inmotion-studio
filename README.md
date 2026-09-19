@@ -171,7 +171,7 @@ The `local-sd-turbo` provider then becomes available for the image phase. Automa
 
 The style-control path can run locally through Diffusers without requiring the ComfyUI UI. It uses the public `stable-diffusion-v1-5/stable-diffusion-v1-5` base plus `lllyasviel/control_v11p_sd15_lineart`, cycles the uploaded references across the three scene frames, and emits the same three-frame storyboard contract as the automatic provider. The generated manifest records the filename used for each conditioned frame. It is only exposed as `ready` after both safetensors checkpoints pass the local file check. Set `ENABLE_LOCAL_CONTROLNET=0` to disable it. The provider is selected automatically before SD-Turbo only when a reference drawing is actually present, so a concept-only production never asks for an upload.
 
-The Studio also lists existing local sketch uploads at `/api/uploads/sketches`, with a safe preview endpoint and a `usar esta` action. This lets a conversation attachment or a file already copied into `assets/uploads/sketches` be selected without finding it again in the Windows file picker. Automatic text-to-image remains the default when no reference is selected.
+The Studio also lists existing local sketch uploads at `/api/uploads/sketches`, with a safe preview endpoint and multi-select actions. Up to ten existing references can be added or removed individually, reused in a production, or saved as a new visual profile without finding each file again in the Windows file picker. Automatic text-to-image remains the default when no reference is selected.
 
 ### Optional ComfyUI / ControlNet / LoRA adapter
 

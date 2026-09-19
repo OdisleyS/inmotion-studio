@@ -1067,16 +1067,50 @@ function App() {
     setSelectedStyleProfile("");
     setSketchPreviews(selected.map((file) => URL.createObjectURL(file)));
   };
-  const selectStoredSketch = (sketch: AvailableSketch) => {
+ const selectStoredSketch = (sketch: AvailableSketch) => {
+   sketchPreviews.forEach((preview) => URL.revokeObjectURL(preview));
+   setFiles([]);
+   setStoredSketchFilenames([sketch.filename]);
+   setSelectedStyleProfile("");
+   setSketchPreviews([
+     `${API}/api/uploads/sketches/${encodeURIComponent(sketch.filename)}`,
+   ]);
+   setImageSource("reference");
+   setProfileMessage(`referência do workspace selecionada · ${sketch.filename}`);
+ };
+  const selectStoredSketches = (sketches: AvailableSketch[]) => {
     sketchPreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    const filenames = sketches.map((sketch) => sketch.filename);
     setFiles([]);
-    setStoredSketchFilenames([sketch.filename]);
+    setStoredSketchFilenames(filenames);
     setSelectedStyleProfile("");
-    setSketchPreviews([
-      `${API}/api/uploads/sketches/${encodeURIComponent(sketch.filename)}`,
-    ]);
+    setSketchPreviews(
+      filenames.map(
+        (filename) =>
+          API + "/api/uploads/sketches/" + encodeURIComponent(filename),
+      ),
+    );
     setImageSource("reference");
-    setProfileMessage(`referência do workspace selecionada · ${sketch.filename}`);
+    setProfileMessage(
+      filenames.length
+        ? String(filenames.length) + " referência(s) do workspace selecionada(s)"
+        : "referências do workspace removidas",
+    );
+  };
+ const toggleStoredSketch = (sketch: AvailableSketch) => {
+   const selected = storedSketchFilenames.includes(sketch.filename);
+    if (!selected && storedSketchFilenames.length >= 10) {
+      setProfileMessage("limite de 10 referências atingido");
+      return;
+    }
+   const nextFilenames = selected
+      ? storedSketchFilenames.filter((filename) => filename !== sketch.filename)
+      : [...storedSketchFilenames, sketch.filename];
+    selectStoredSketches(
+      nextFilenames
+        .map((filename) => availableSketches.find((item) => item.filename === filename))
+        .filter((item): item is AvailableSketch => Boolean(item)),
+    );
   };
   useEffect(() => {
     if (imageSource !== "reference") return;
@@ -1182,14 +1216,16 @@ function App() {
       .map((item: { filename: string }) => item.filename);
   };
 
-  const saveStyleProfile = async () => {
-    if (!files.length) {
-      setProfileMessage("selecione pelo menos um desenho antes de salvar");
-      return;
-    }
-    setProfileMessage("validando referências…");
-    try {
-      const sketchFilenames = await uploadSketches();
+ const saveStyleProfile = async () => {
+    if (!files.length && !storedSketchFilenames.length) {
+     setProfileMessage("selecione pelo menos um desenho antes de salvar");
+     return;
+   }
+   setProfileMessage("validando referências…");
+   try {
+      const sketchFilenames = files.length
+        ? await uploadSketches()
+        : storedSketchFilenames;
       const response = await fetch(`${API}/api/styles/profiles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2111,7 +2147,7 @@ function App() {
                               {files.length
                                 ? "O traço será incorporado aos frames desta produção."
                                 : storedSketchFilenames.length
-                                  ? "Referência salva neste projeto; ela será reutilizada na próxima geração."
+                                  ? "Referências salvas neste projeto; elas serão reutilizadas na próxima geração."
                                 : "Uma foto já basta · PNG, JPG ou WEBP · até 10 referências."}
                             </span>
                             <small className="reference-tip">
@@ -2119,28 +2155,32 @@ function App() {
                               para esta área. Dica: fotografe de cima, com boa
                               luz e o papel inteiro visível.
                             </small>
-                            {!files.length && !storedSketchFilenames.length && availableSketches.length ? (
-                              <div className="workspace-sketches">
-                                <small>Referências já encontradas neste workspace</small>
-                                <div className="workspace-sketch-list">
-                                  {availableSketches.slice(0, 6).map((sketch) => (
-                                    <button
-                                      type="button"
-                                      className="workspace-sketch"
-                                      key={sketch.filename}
-                                      onClick={() => selectStoredSketch(sketch)}
-                                      title={`Usar ${sketch.filename}`}
-                                    >
-                                      <img
-                                        src={`${API}/api/uploads/sketches/${encodeURIComponent(sketch.filename)}`}
-                                        alt={`Referência ${sketch.filename}`}
-                                      />
-                                      <span>usar esta</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null}
+                            {!files.length && availableSketches.length ? (
+                             <div className="workspace-sketches">
+                                <small>Referências já encontradas neste workspace · selecione até 10</small>
+                               <div className="workspace-sketch-list">
+                                 {availableSketches.slice(0, 6).map((sketch) => (
+                                   <button
+                                     type="button"
+                                      className={`workspace-sketch ${storedSketchFilenames.includes(sketch.filename) ? "selected" : ""}`}
+                                     key={sketch.filename}
+                                      onClick={() => toggleStoredSketch(sketch)}
+                                      title={`${storedSketchFilenames.includes(sketch.filename) ? "Remover" : "Adicionar"} ${sketch.filename}`}
+                                   >
+                                     <img
+                                       src={`${API}/api/uploads/sketches/${encodeURIComponent(sketch.filename)}`}
+                                       alt={`Referência ${sketch.filename}`}
+                                     />
+                                      <span>
+                                        {storedSketchFilenames.includes(sketch.filename)
+                                          ? "selecionada · remover"
+                                          : "adicionar"}
+                                      </span>
+                                   </button>
+                                 ))}
+                               </div>
+                             </div>
+                           ) : null}
                           </div>
                           <label className="upload-button">
                             {files.length || storedSketchFilenames.length
@@ -2415,7 +2455,7 @@ function App() {
                         <button
                           type="button"
                           className="text-button"
-                          disabled={!files.length}
+                          disabled={!files.length && !storedSketchFilenames.length}
                           onClick={() => void saveStyleProfile()}
                         >
                           salvar perfil
