@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PIL import Image
 
 from backend.app.lora_training import lora_dataset_status, prepare_lora_dataset, start_lora_training
+from backend.app.diffusion import lora_adapter_path, lora_adapter_status
 
 
 class LoraTrainingTests(unittest.TestCase):
@@ -82,6 +83,30 @@ class LoraTrainingTests(unittest.TestCase):
             command = popen.call_args.args[0]
             self.assertIn("--steps", command)
             self.assertIn("12", command)
+
+    def test_completed_training_adapter_is_discovered_without_env_override(self):
+        profile_id = str(uuid.uuid4())
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            adapter = root / "assets" / "models" / "lora" / f"{profile_id}.safetensors"
+            adapter.parent.mkdir(parents=True)
+            adapter.write_bytes(b"adapter" * 512)
+            manifest = root / "assets" / "models" / "lora" / "training" / profile_id / "manifest.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(json.dumps({
+                "profile_id": profile_id,
+                "training_status": "completed",
+                "adapter_output": str(adapter),
+            }), encoding="utf-8")
+            with patch("backend.app.diffusion.PROJECT_ROOT", root), patch.dict("os.environ", {"LOCAL_LORA_ADAPTER": ""}, clear=False):
+                self.assertEqual(lora_adapter_path(), adapter)
+                status = lora_adapter_status()
+            self.assertFalse(status["configured"])
+            self.assertTrue(status["discovered"])
+            self.assertTrue(status["available"])
+            self.assertEqual(status["profile_id"], profile_id)
+            self.assertEqual(status["source"], "completed-training-manifest")
+            self.assertTrue(any(item["selected"] for item in status["adapters"]))
 
 
 if __name__ == "__main__":

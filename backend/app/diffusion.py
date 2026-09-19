@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ _PIPELINE: Any = None
 _IMAGE2IMAGE_PIPELINE: Any = None
 _IMAGE2IMAGE_DISABLED = False
 _LORA_LOAD_ERRORS: dict[str, str] = {}
+_LORA_SUFFIXES = {".safetensors", ".bin", ".pt"}
 
 
 def diffusion_model_root() -> Path:
@@ -20,17 +22,57 @@ def diffusion_model_root() -> Path:
     return configured if configured.is_absolute() else PROJECT_ROOT / configured
 
 
-def lora_adapter_path() -> Path | None:
-    """Resolve an optional local LoRA adapter without making it mandatory."""
+def _configured_lora_adapter_path() -> Path | None:
+    """Resolve the explicit adapter path, if the user configured one."""
     configured = os.getenv("LOCAL_LORA_ADAPTER", "").strip()
     if not configured:
         return None
     path = Path(configured)
     if not path.is_absolute():
         path = PROJECT_ROOT / path
-    if path.suffix.lower() not in {".safetensors", ".bin", ".pt"}:
+    if path.suffix.lower() not in _LORA_SUFFIXES:
         return None
     return path
+
+
+def _completed_training_adapters() -> list[dict[str, object]]:
+    """Find adapters emitted by the local trainer, without trusting unfinished manifests."""
+    root = PROJECT_ROOT / "assets" / "models" / "lora" / "training"
+    if not root.exists():
+        return []
+    discovered: list[dict[str, object]] = []
+    for manifest_path in root.glob("*/manifest.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(manifest, dict) or manifest.get("training_status") != "completed":
+            continue
+        raw_output = str(manifest.get("adapter_output", "")).strip()
+        if not raw_output:
+            continue
+        output = Path(raw_output)
+        if not output.is_absolute():
+            output = PROJECT_ROOT / output
+        if output.suffix.lower() not in _LORA_SUFFIXES:
+            continue
+        discovered.append({
+            "path": output,
+            "profile_id": str(manifest.get("profile_id", manifest_path.parent.name)),
+            "manifest": manifest_path,
+            "source": "completed-training-manifest",
+        })
+    return discovered
+
+
+def lora_adapter_path() -> Path | None:
+    """Resolve an optional adapter, preferring explicit config then latest trained profile."""
+    configured = _configured_lora_adapter_path()
+    if os.getenv("LOCAL_LORA_ADAPTER", "").strip():
+        return configured
+    candidates = [item for item in _completed_training_adapters() if isinstance(item.get("path"), Path)]
+    candidates.sort(key=lambda item: item["path"].stat().st_mtime if item["path"].exists() else 0, reverse=True)
+    return candidates[0]["path"] if candidates else None
 
 
 def lora_adapter_available() -> bool:
@@ -41,33 +83,47 @@ def lora_adapter_available() -> bool:
 def lora_adapter_catalog() -> list[dict[str, object]]:
     """List local adapters that can be selected without exposing file contents."""
     root = PROJECT_ROOT / "assets" / "models" / "lora"
-    candidates: list[Path] = []
+    candidates: dict[Path, dict[str, object]] = {}
     if root.exists():
-        candidates.extend(
-            path for path in root.iterdir()
-            if path.is_file() and path.suffix.lower() in {".safetensors", ".bin", ".pt"}
-        )
-    configured = lora_adapter_path()
-    if configured and configured not in candidates:
-        candidates.append(configured)
+        for path in root.iterdir():
+            if path.is_file() and path.suffix.lower() in _LORA_SUFFIXES:
+                candidates[path.resolve()] = {"source": "manual-file"}
+    for item in _completed_training_adapters():
+        path = item.get("path")
+        if isinstance(path, Path):
+            candidates[path.resolve()] = {
+                "source": item.get("source"),
+                "profile_id": item.get("profile_id"),
+                "manifest": str(item.get("manifest")),
+            }
+    explicit = _configured_lora_adapter_path()
+    if explicit:
+        candidates.setdefault(explicit.resolve(), {"source": "explicit-config"})
+    selected = lora_adapter_path()
     return [
         {
             "name": path.name,
             "path": str(path),
             "available": path.exists() and path.is_file() and path.stat().st_size > 1024,
             "size_bytes": path.stat().st_size if path.exists() and path.is_file() else 0,
-            "selected": bool(configured and path.resolve() == configured.resolve()),
+            "selected": bool(selected and path.resolve() == selected.resolve()),
+            **metadata,
         }
-        for path in sorted(candidates, key=lambda item: item.name.casefold())
+        for path, metadata in sorted(candidates.items(), key=lambda item: item[0].name.casefold())
     ]
 
 
 def lora_adapter_status() -> dict[str, object]:
     path = lora_adapter_path()
+    explicit = _configured_lora_adapter_path()
+    selected_item = next((item for item in _completed_training_adapters() if item.get("path") == path), None)
     return {
-        "configured": bool(path),
+        "configured": bool(explicit),
+        "discovered": bool(path and not explicit),
         "available": lora_adapter_available(),
         "path": str(path) if path else None,
+        "source": "explicit-config" if explicit else (selected_item.get("source") if selected_item else None),
+        "profile_id": selected_item.get("profile_id") if selected_item else None,
         "size_bytes": path.stat().st_size if path and path.exists() and path.is_file() else 0,
         "error": _LORA_LOAD_ERRORS.get(str(path)) if path else None,
         "adapters": lora_adapter_catalog(),
